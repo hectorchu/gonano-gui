@@ -36,17 +36,8 @@ func (wi *walletInfo) init(password string) (err error) {
 			return
 		}
 	} else {
-		var enc, salt, key, seed []byte
-		if enc, err = hex.DecodeString(wi.Seed); err != nil {
-			return
-		}
-		if salt, err = hex.DecodeString(wi.Salt); err != nil {
-			return
-		}
-		if key, _, err = deriveKey(password, salt); err != nil {
-			return
-		}
-		if seed, err = decrypt(enc, key); err != nil {
+		var seed []byte
+		if seed, err = wi.decryptSeed(password); err != nil {
 			return
 		}
 		if wi.IsBip39 {
@@ -60,6 +51,22 @@ func (wi *walletInfo) init(password string) (err error) {
 		}
 	}
 	return wi.initAccountsList()
+}
+
+func (wi *walletInfo) decryptSeed(password string) (seed []byte, err error) {
+	enc, err := hex.DecodeString(wi.Seed)
+	if err != nil {
+		return
+	}
+	salt, err := hex.DecodeString(wi.Salt)
+	if err != nil {
+		return
+	}
+	key, _, err := deriveKey(password, salt)
+	if err != nil {
+		return
+	}
+	return decrypt(enc, key)
 }
 
 func (wi *walletInfo) initSeed(seed []byte) (err error) {

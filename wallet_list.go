@@ -39,9 +39,15 @@ func newWalletList(win fyne.Window, al *accountList) (wl *walletList) {
 				l := item.(*contextMenuLabel)
 				l.SetText(wi.Label)
 				l.tapped = func() { wl.list.Select(id) }
-				l.menu = fyne.NewMenu("", fyne.NewMenuItem("Rename", func() {
+				items := []*fyne.MenuItem{fyne.NewMenuItem("Rename", func() {
 					wl.showRenameDialog(win, wi)
-				}))
+				})}
+				if wi.Seed != "" && !wi.IsBip39 {
+					items = append(items, fyne.NewMenuItem("Change password", func() {
+						wl.changePasswordDialog(win, wi)
+					}))
+				}
+				l.menu = fyne.NewMenu("", items...)
 			},
 		),
 		addButton: newContextMenuButton("Add", theme.ContentAddIcon(), fyne.NewMenu("",
@@ -349,5 +355,49 @@ func (wl *walletList) newLedgerWallet(win fyne.Window) (err error) {
 	}
 	wl.wallets = append(wl.wallets, wi)
 	wl.list.Refresh()
+	return wl.saveWallet(wi)
+}
+
+func (wl *walletList) changePasswordDialog(win fyne.Window, wi *walletInfo) {
+	var (
+		oldPassword  = widget.NewPasswordEntry()
+		newPassword  = widget.NewPasswordEntry()
+		newPassword2 = widget.NewPasswordEntry()
+		scroll       = container.NewHScroll(oldPassword)
+		content      = widget.NewForm(
+			widget.NewFormItem("Old password", scroll),
+			widget.NewFormItem("New password", container.NewHScroll(newPassword)),
+			widget.NewFormItem("Confirm password", container.NewHScroll(newPassword2)),
+		)
+	)
+	scroll.SetMinSize(fyne.NewSize(400, 0))
+	dialog.ShowCustomConfirm(wi.Label, "OK", "Cancel", content, func(ok bool) {
+		if ok {
+			if newPassword.Text != newPassword2.Text {
+				dialog.ShowError(errors.New("Passwords don't match"), win)
+				return
+			}
+			if err := wl.changePassword(wi, oldPassword.Text, newPassword.Text); err != nil {
+				dialog.ShowError(err, win)
+			}
+		}
+	}, win)
+}
+
+func (wl *walletList) changePassword(wi *walletInfo, oldPassword, newPassword string) (err error) {
+	seed, err := wi.decryptSeed(oldPassword)
+	if err != nil {
+		return
+	}
+	key, salt, err := deriveKey(newPassword, nil)
+	if err != nil {
+		return
+	}
+	enc, err := encrypt(seed, key)
+	if err != nil {
+		return
+	}
+	wi.Salt = hex.EncodeToString(salt)
+	wi.Seed = hex.EncodeToString(enc)
 	return wl.saveWallet(wi)
 }
