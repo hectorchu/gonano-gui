@@ -22,4 +22,4 @@ Usage
 
 To create a new, randomized wallet click on `Add` (under Wallets) -> `BIP39 mnemonic` -> `OK`.
 
-Make sure to write down the 24 words that are printed on-screen if you want to be able to restore the wallet at a later date. This is the only opportunity given to do so.
+Make sure to write down the 24 words that are printed on-screen if you want to be able to restore the wallet at a later date.

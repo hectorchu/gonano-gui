@@ -42,10 +42,15 @@ func newWalletList(win fyne.Window, al *accountList) (wl *walletList) {
 				items := []*fyne.MenuItem{fyne.NewMenuItem("Rename", func() {
 					wl.showRenameDialog(win, wi)
 				})}
-				if wi.Seed != "" && !wi.IsBip39 {
-					items = append(items, fyne.NewMenuItem("Change password", func() {
-						wl.changePasswordDialog(win, wi)
+				if wi.Seed != "" {
+					items = append(items, fyne.NewMenuItem("Export seed", func() {
+						wl.exportSeed(win, wi)
 					}))
+					if !wi.IsBip39 {
+						items = append(items, fyne.NewMenuItem("Change password", func() {
+							wl.changePasswordDialog(win, wi)
+						}))
+					}
 				}
 				l.menu = fyne.NewMenu("", items...)
 			},
@@ -315,12 +320,7 @@ func (wl *walletList) newBip39Wallet(win fyne.Window, label, mnemonic, password 
 		if entropy, err = bip39.NewEntropy(256); err != nil {
 			return
 		}
-		if mnemonic, err = bip39.NewMnemonic(entropy); err != nil {
-			return
-		}
-		words := strings.Split(mnemonic, " ")
-		mnemonic = strings.Join(words[:12], " ") + "\n" + strings.Join(words[12:], " ")
-		dialog.ShowInformation("Your secret words are:", mnemonic, win)
+		wl.exportSeedDialog(win, wi, entropy)
 	} else {
 		if entropy, err = bip39.EntropyFromMnemonic(mnemonic); err != nil {
 			return
@@ -356,6 +356,37 @@ func (wl *walletList) newLedgerWallet(win fyne.Window) (err error) {
 	wl.wallets = append(wl.wallets, wi)
 	wl.list.Refresh()
 	return wl.saveWallet(wi)
+}
+
+func (wl *walletList) exportSeed(win fyne.Window, wi *walletInfo) {
+	if seed, err := wi.decryptSeed(""); err == nil {
+		wl.exportSeedDialog(win, wi, seed)
+		return
+	}
+	showPasswordDialog(win, wi.Label, func(password string) (err error) {
+		seed, err := wi.decryptSeed(password)
+		if err == nil {
+			wl.exportSeedDialog(win, wi, seed)
+		}
+		return
+	})
+}
+
+func (wl *walletList) exportSeedDialog(win fyne.Window, wi *walletInfo, seed []byte) {
+	var (
+		label = widget.NewLabel("Your seed is:")
+		entry = widget.NewEntry()
+	)
+	if wi.IsBip39 {
+		mnemonic, _ := bip39.NewMnemonic(seed)
+		words := strings.Split(mnemonic, " ")
+		mnemonic = strings.Join(words[:12], " ") + "\n" + strings.Join(words[12:], " ")
+		entry = widget.NewMultiLineEntry()
+		entry.SetText(mnemonic)
+	} else {
+		entry.SetText(strings.ToUpper(hex.EncodeToString(seed)))
+	}
+	dialog.ShowCustom(wi.Label, "OK", container.NewVBox(label, entry), win)
 }
 
 func (wl *walletList) changePasswordDialog(win fyne.Window, wi *walletInfo) {
