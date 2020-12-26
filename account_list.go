@@ -270,7 +270,7 @@ func (al *accountList) send(win fyne.Window, account, amount string) (err error)
 func showSuccessDialog(win fyne.Window, h []byte) {
 	var (
 		hash      = strings.ToUpper(hex.EncodeToString(h))
-		url, _    = url.Parse("https://nanocean.org/block/" + hash)
+		url, _    = url.Parse("https://nanolooker.com/block/" + hash)
 		label     = widget.NewLabel("Sent with block hash")
 		hyperlink = widget.NewHyperlink(hash, url)
 	)

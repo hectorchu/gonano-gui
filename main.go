@@ -14,7 +14,7 @@ import (
 func main() {
 	f := app.New()
 	f.SetIcon(resourceNanoPng)
-	win := f.NewWindow("Gonano v0.1.1")
+	win := f.NewWindow("Gonano v0.1.2")
 	if err := initConfig(); err != nil {
 		dialog.ShowError(err, win)
 	}
@@ -67,7 +67,7 @@ func toggleTheme() {
 func chooseRPC() {
 	for _, url := range []string{
 		"https://mynano.ninja/api/node",
-		"https://nault.nanos.cc/proxy",
+		"https://proxy.nanos.cc/proxy",
 		"https://voxpopuli.network/api",
 		"https://vault.nanocrawler.cc/api/node-api",
 	} {
