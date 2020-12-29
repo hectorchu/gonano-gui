@@ -14,10 +14,11 @@ import (
 func main() {
 	f := app.New()
 	f.SetIcon(resourceNanoPng)
-	win := f.NewWindow("Gonano v0.1.2")
+	win := f.NewWindow("Gonano v0.1.3")
 	if err := initConfig(); err != nil {
 		dialog.ShowError(err, win)
 	}
+	go loadTokens(win)
 	al := newAccountList(win)
 	wl := newWalletList(win, al)
 	al.wl = wl
@@ -78,4 +79,11 @@ func chooseRPC() {
 			break
 		}
 	}
+}
+
+func loadTokens(win fyne.Window) {
+	prog := dialog.NewProgressInfinite("Gonano", "Loading tokens...", win)
+	prog.Show()
+	tcm.load()
+	prog.Hide()
 }

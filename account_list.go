@@ -28,6 +28,7 @@ type accountList struct {
 	sendButton, receiveButton *widget.Button
 	receiveAllButton          *widget.Button
 	changeRepButton           *widget.Button
+	tokensButton              *widget.Button
 	toggleThemeButton         *widget.Button
 	wl                        *walletList
 	wi                        *walletInfo
@@ -96,6 +97,14 @@ func newAccountList(win fyne.Window) (al *accountList) {
 				al.showChangeRepDialog(win)
 			},
 		),
+		tokensButton: widget.NewButtonWithIcon("Tokens",
+			theme.NewThemedResource(resourceTagsSvg, nil), func() {
+				if al.wi == nil || al.selectedAccount == nil {
+					return
+				}
+				newTokenList(al.wi, al.selectedAccount)
+			},
+		),
 		toggleThemeButton: widget.NewButtonWithIcon("", toggleThemeResource(), func() {
 			toggleTheme()
 			al.toggleThemeButton.SetIcon(toggleThemeResource())
@@ -106,7 +115,7 @@ func newAccountList(win fyne.Window) (al *accountList) {
 		widget.NewHBox(
 			al.addButton, al.removeButton, al.sendButton,
 			al.receiveButton, al.receiveAllButton, al.changeRepButton,
-			layout.NewSpacer(), al.toggleThemeButton,
+			al.tokensButton, layout.NewSpacer(), al.toggleThemeButton,
 		),
 		nil, nil, al.list,
 	)
@@ -114,7 +123,7 @@ func newAccountList(win fyne.Window) (al *accountList) {
 	al.list.OnUnselected = func(id widget.ListItemID) { al.setAccount(nil) }
 	al.setWallet(nil)
 	go func() {
-		for range time.NewTicker(10 * time.Second).C {
+		for range time.Tick(10 * time.Second) {
 			al.m.Lock()
 			if al.wi != nil {
 				al.wi.getBalances()
@@ -145,6 +154,7 @@ func (al *accountList) setWallet(wi *walletInfo) {
 		al.receiveButton.Disable()
 		al.receiveAllButton.Disable()
 		al.changeRepButton.Disable()
+		al.tokensButton.Disable()
 		al.setAccount(nil)
 	} else {
 		al.addButton.Enable()
@@ -165,11 +175,13 @@ func (al *accountList) setAccount(ai *accountInfo) {
 		al.sendButton.Disable()
 		al.receiveButton.Disable()
 		al.changeRepButton.Disable()
+		al.tokensButton.Disable()
 	} else {
 		al.removeButton.Enable()
 		al.sendButton.Enable()
 		al.receiveButton.Enable()
 		al.changeRepButton.Enable()
+		al.tokensButton.Enable()
 	}
 }
 
