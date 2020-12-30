@@ -85,7 +85,6 @@ func (tcm *tokenChainManager) createToken(
 		return
 	}
 	tcm.tokens[string(token.Hash())] = token
-	tcm.save()
 	return
 }
 
@@ -144,7 +143,6 @@ func (tcm *tokenChainManager) fetchToken(hash rpc.BlockHash) (token *tokenchain.
 		return
 	}
 	tcm.tokens[string(hash)] = token
-	tcm.save()
 	return
 }
 

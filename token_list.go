@@ -161,6 +161,9 @@ func (tl *tokenList) showNewTokenDialog(win fyne.Window) {
 				dialog.ShowError(err, win)
 				return
 			}
+			if err = tcm.save(); err != nil {
+				dialog.ShowError(err, win)
+			}
 			tl.list.Refresh()
 			showSuccessDialog(win, token.Hash())
 		}
@@ -188,6 +191,9 @@ func (tl *tokenList) showAddTokenDialog(win fyne.Window) {
 			if err != nil {
 				dialog.ShowError(err, win)
 				return
+			}
+			if err = tcm.save(); err != nil {
+				dialog.ShowError(err, win)
 			}
 			tl.list.Refresh()
 			dialog.ShowInformation("Add Existing Token", "Added "+token.Name(), win)

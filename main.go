@@ -84,6 +84,9 @@ func chooseRPC() {
 func loadTokens(win fyne.Window) {
 	prog := dialog.NewProgressInfinite("Gonano", "Loading tokens...", win)
 	prog.Show()
-	tcm.load()
+	err := tcm.load()
 	prog.Hide()
+	if err != nil {
+		dialog.ShowError(err, win)
+	}
 }
