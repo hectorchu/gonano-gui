@@ -14,7 +14,7 @@ import (
 func main() {
 	f := app.New()
 	f.SetIcon(resourceNanoPng)
-	win := f.NewWindow("Gonano v0.1.3")
+	win := f.NewWindow("Gonano v0.1.4")
 	if err := initConfig(); err != nil {
 		dialog.ShowError(err, win)
 	}
