@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"math/big"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -13,11 +15,13 @@ import (
 	"github.com/hectorchu/gonano/rpc"
 	"github.com/hectorchu/gonano/wallet"
 	"github.com/hectorchu/nano-token-protocol/tokenchain"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
 type tokenChainManager struct {
-	m      sync.Mutex
+	m, mDB sync.Mutex
 	chains map[string]*tokenchain.Chain
 	tokens map[string]*tokenchain.Token
 }
@@ -119,6 +123,10 @@ func (tcm *tokenChainManager) fetchChain(address string) (chain *tokenchain.Chai
 	}
 	err = chain.Parse()
 	tcm.m.Unlock()
+	if err != nil {
+		return
+	}
+	err = tcm.withDB(func(db *sql.DB) error { return chain.SaveState(db) })
 	return
 }
 
@@ -152,23 +160,75 @@ func (tcm *tokenChainManager) parse() (err error) {
 		if err = chain.Parse(); err != nil {
 			break
 		}
+		if err = tcm.withDB(func(db *sql.DB) error { return chain.SaveState(db) }); err != nil {
+			break
+		}
 	}
 	tcm.m.Unlock()
 	return
 }
 
+func (tcm *tokenChainManager) withDB(cb func(*sql.DB) error) (err error) {
+	home, err := homedir.Dir()
+	if err != nil {
+		return
+	}
+	tcm.mDB.Lock()
+	defer tcm.mDB.Unlock()
+	db, err := sql.Open("sqlite3", filepath.Join(home, "tokenchains.db"))
+	if err != nil {
+		return
+	}
+	defer db.Close()
+	return cb(db)
+}
+
 func (tcm *tokenChainManager) load() (err error) {
+	tcm.withDB(func(db *sql.DB) error { return tcm.loadChains(db) })
 	tokens := viper.GetStringSlice("tokens")
 	for _, hash := range tokens {
 		var h rpc.BlockHash
 		if h, err = hex.DecodeString(hash); err != nil {
 			return
 		}
+		for _, chain := range tcm.chains {
+			if token, err := chain.Token(h); err == nil {
+				tcm.tokens[string(h)] = token
+				break
+			}
+		}
 		if _, err = tcm.fetchToken(h); err != nil {
 			return
 		}
 	}
 	return
+}
+
+func (tcm *tokenChainManager) loadChains(db *sql.DB) (err error) {
+	rows, err := db.Query("SELECT seed FROM chains")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var seedStr string
+		if err := rows.Scan(&seedStr); err != nil {
+			return err
+		}
+		seed, err := hex.DecodeString(seedStr)
+		if err != nil {
+			return err
+		}
+		chain, err := tokenchain.NewChainFromSeed(seed, rpcURL)
+		if err != nil {
+			return err
+		}
+		if err = chain.LoadState(db); err != nil {
+			return err
+		}
+		tcm.chains[chain.Address()] = chain
+	}
+	return rows.Err()
 }
 
 func (tcm *tokenChainManager) save() (err error) {
