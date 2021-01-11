@@ -184,19 +184,22 @@ func (tcm *tokenChainManager) withDB(cb func(*sql.DB) error) (err error) {
 }
 
 func (tcm *tokenChainManager) load() (err error) {
+	tcm.m.Lock()
 	tcm.withDB(func(db *sql.DB) error { return tcm.loadChains(db) })
-	tokens := viper.GetStringSlice("tokens")
-	for _, hash := range tokens {
+	tcm.m.Unlock()
+	for _, hash := range viper.GetStringSlice("tokens") {
 		var h rpc.BlockHash
 		if h, err = hex.DecodeString(hash); err != nil {
 			return
 		}
+		tcm.m.Lock()
 		for _, chain := range tcm.chains {
 			if token, err := chain.Token(h); err == nil {
 				tcm.tokens[string(h)] = token
 				break
 			}
 		}
+		tcm.m.Unlock()
 		if _, err = tcm.fetchToken(h); err != nil {
 			return
 		}
