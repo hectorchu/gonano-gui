@@ -1,12 +1,14 @@
 package main
 
 import (
-	"encoding/hex"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+	"net/http"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -232,19 +234,22 @@ func (al *accountList) showSendDialog(win fyne.Window) {
 			amount.SetText(al.selectedAccount.balance.String())
 			al.m.Unlock()
 		})
-		scroll  = container.NewHScroll(amount)
-		content = widget.NewForm(
+		paymentURL = widget.NewEntry()
+		scroll     = container.NewHScroll(amount)
+		content    = widget.NewForm(
 			widget.NewFormItem("Recipient", container.NewHScroll(account)),
 			widget.NewFormItem("Amount", container.NewHBox(scroll, max)),
+			widget.NewFormItem("Payment URL", container.NewHScroll(paymentURL)),
 		)
 	)
 	scroll.SetMinSize(fyne.NewSize(500, 0))
 	account.SetPlaceHolder("Address to send to")
 	amount.SetPlaceHolder("Amount of NANO to send")
+	paymentURL.SetPlaceHolder("URL to send block to (leave blank to send to network)")
 	dialog.ShowCustomConfirm(
 		"Send from "+al.selectedAccount.address, "OK", "Cancel", content, func(ok bool) {
 			if ok {
-				if err := al.send(win, account.Text, amount.Text); err != nil {
+				if err := al.send(win, account.Text, amount.Text, paymentURL.Text); err != nil {
 					dialog.ShowError(err, win)
 				}
 			}
@@ -252,7 +257,7 @@ func (al *accountList) showSendDialog(win fyne.Window) {
 	)
 }
 
-func (al *accountList) send(win fyne.Window, account, amount string) (err error) {
+func (al *accountList) send(win fyne.Window, account, amount, paymentURL string) (err error) {
 	n, err := util.NanoAmountFromString(amount)
 	if err != nil {
 		return
@@ -264,12 +269,30 @@ func (al *accountList) send(win fyne.Window, account, amount string) (err error)
 	if a.Address() != al.selectedAccount.address {
 		return errors.New("Address mismatch")
 	}
-	prog := dialog.NewProgressInfinite(al.wi.Label, "Generating block...", win)
-	prog.Show()
-	hash, err := a.Send(account, n.Raw)
-	prog.Hide()
-	if err != nil {
-		return
+	var hash rpc.BlockHash
+	if paymentURL == "" {
+		prog := dialog.NewProgressInfinite(al.wi.Label, "Generating block...", win)
+		prog.Show()
+		hash, err = a.Send(account, n.Raw)
+		prog.Hide()
+		if err != nil {
+			return
+		}
+	} else {
+		var block *rpc.Block
+		if block, err = a.SendBlock(account, n.Raw); err != nil {
+			return
+		}
+		prog := dialog.NewProgressInfinite(al.wi.Label, "Waiting for confirmation...", win)
+		prog.Show()
+		err = sendToPaymentURL(paymentURL, block)
+		prog.Hide()
+		if err != nil {
+			return
+		}
+		if hash, err = block.Hash(); err != nil {
+			return
+		}
 	}
 	showSuccessDialog(win, hash)
 	al.m.Lock()
@@ -279,12 +302,31 @@ func (al *accountList) send(win fyne.Window, account, amount string) (err error)
 	return
 }
 
-func showSuccessDialog(win fyne.Window, h []byte) {
+func sendToPaymentURL(paymentURL string, block *rpc.Block) (err error) {
 	var (
-		hash      = strings.ToUpper(hex.EncodeToString(h))
-		url, _    = url.Parse("https://nanolooker.com/block/" + hash)
+		buf  bytes.Buffer
+		resp *http.Response
+	)
+	if err = json.NewEncoder(&buf).Encode(block); err != nil {
+		return
+	}
+	if resp, err = http.Post(paymentURL, "application/json", &buf); err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		buf.Reset()
+		io.Copy(&buf, resp.Body)
+		return errors.New(buf.String())
+	}
+	return
+}
+
+func showSuccessDialog(win fyne.Window, hash rpc.BlockHash) {
+	var (
+		url, _    = url.Parse("https://nanolooker.com/block/" + hash.String())
 		label     = widget.NewLabel("Sent with block hash")
-		hyperlink = widget.NewHyperlink(hash, url)
+		hyperlink = widget.NewHyperlink(hash.String(), url)
 	)
 	dialog.ShowCustom("Success", "OK", container.NewHBox(label, hyperlink), win)
 }

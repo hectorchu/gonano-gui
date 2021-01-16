@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -237,7 +236,7 @@ func (tcm *tokenChainManager) loadChains(db *sql.DB) (err error) {
 func (tcm *tokenChainManager) save() (err error) {
 	tokens := make([]string, 0, len(tcm.tokens))
 	for hash := range tcm.tokens {
-		tokens = append(tokens, strings.ToUpper(hex.EncodeToString(rpc.BlockHash(hash))))
+		tokens = append(tokens, rpc.BlockHash(hash).String())
 	}
 	viper.Set("tokens", tokens)
 	return viper.WriteConfig()

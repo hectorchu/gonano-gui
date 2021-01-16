@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"strconv"
-	"strings"
 	"time"
 
 	"fyne.io/fyne"
@@ -50,7 +49,7 @@ func newTokenList(wi *walletInfo, ai *accountInfo) (tl *tokenList) {
 				getLabel := func(i int) *contextMenuLabel {
 					return item.(*fyne.Container).Objects[i].(*contextMenuLabel)
 				}
-				getLabel(0).SetText(strings.ToUpper(hex.EncodeToString(token.Hash())))
+				getLabel(0).SetText(token.Hash().String())
 				getLabel(1).SetText(token.Name())
 				getLabel(2).SetText(tcm.amountToString(tcm.getBalance(token, ai.address), token.Decimals()))
 				getLabel(0).tapped = func() { tl.list.Select(id) }
