@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net/http"
 	"net/url"
 	"sync"
@@ -58,7 +57,7 @@ func newAccountList(win fyne.Window) (al *accountList) {
 				ai := al.wi.accountsList[id]
 				al.m.Lock()
 				balance := ai.balance.String()
-				if ai.pending.Raw.Cmp(&big.Int{}) > 0 {
+				if ai.pending.Raw.Sign() > 0 {
 					balance += fmt.Sprintf(" (+ %s)", ai.pending)
 				}
 				al.m.Unlock()
@@ -270,28 +269,29 @@ func (al *accountList) send(win fyne.Window, account, amount, paymentURL string)
 		return errors.New("Address mismatch")
 	}
 	var hash rpc.BlockHash
+	prog := dialog.NewProgressInfinite(al.wi.Label, "Generating block...", win)
+	prog.Show()
 	if paymentURL == "" {
-		prog := dialog.NewProgressInfinite(al.wi.Label, "Generating block...", win)
-		prog.Show()
 		hash, err = a.Send(account, n.Raw)
 		prog.Hide()
 		if err != nil {
 			return
 		}
 	} else {
-		var block *rpc.Block
-		if block, err = a.SendBlock(account, n.Raw); err != nil {
-			return
+		block, err := a.SendBlock(account, n.Raw)
+		prog.Hide()
+		if err != nil {
+			return err
 		}
-		prog := dialog.NewProgressInfinite(al.wi.Label, "Waiting for confirmation...", win)
+		if hash, err = block.Hash(); err != nil {
+			return err
+		}
+		prog = dialog.NewProgressInfinite(al.wi.Label, "Waiting for confirmation...", win)
 		prog.Show()
 		err = sendToPaymentURL(paymentURL, block)
 		prog.Hide()
 		if err != nil {
-			return
-		}
-		if hash, err = block.Hash(); err != nil {
-			return
+			return err
 		}
 	}
 	showSuccessDialog(win, hash)

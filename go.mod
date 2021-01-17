@@ -6,7 +6,7 @@ require (
 	fyne.io/fyne v1.4.3
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20201108214237-06ea97f0c265 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
-	github.com/hectorchu/gonano v0.1.12
+	github.com/hectorchu/gonano v0.1.13
 	github.com/hectorchu/nano-token-protocol v0.1.4
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.6

@@ -123,8 +123,8 @@ github.com/hashicorp/memberlist v0.1.3/go.mod h1:ajVTdAv/9Im8oMAAj5G31PhhMCZJV2p
 github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/JwenrHc=
 github.com/hectorchu/gonano v0.1.10 h1:wONRIPimjtSddOsjrVmz22oLJJNqP+CZsmclkMMJTl4=
 github.com/hectorchu/gonano v0.1.10/go.mod h1:BHghdX9UkY1GYKdekI85ZBv3xtwBit6Z+5r8rokEnv8=
-github.com/hectorchu/gonano v0.1.12 h1:WWaIwk7QiadhKpiLnWvPz3FxBXJUgfD9WkhqKsjQn7c=
-github.com/hectorchu/gonano v0.1.12/go.mod h1:jd3NgOBivbv4yTcgQOWK1XUPDbkkx6KwFeZPoGET+2g=
+github.com/hectorchu/gonano v0.1.13 h1:HaIinv30rbf7jAoC2R3ZV9J87CyJ7n0THGnb6aA4wtg=
+github.com/hectorchu/gonano v0.1.13/go.mod h1:jd3NgOBivbv4yTcgQOWK1XUPDbkkx6KwFeZPoGET+2g=
 github.com/hectorchu/nano-token-protocol v0.1.4 h1:J6ikPulTivGLlHifSJgzA7seCtaf4znO+7crfNPDzxU=
 github.com/hectorchu/nano-token-protocol v0.1.4/go.mod h1:MEOHUT3Ub4SNxh2SyAtMptBYZYMTvYFCScxUH/ejGZQ=
 github.com/inconshreveable/mousetrap v1.0.0 h1:Z8tu5sraLXCXIcARxBp/8cbvlwVa7Z1NHg9XEKhtSvM=
