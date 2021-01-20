@@ -4,13 +4,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"strconv"
-	"time"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/container"
 	"fyne.io/fyne/dialog"
 	"fyne.io/fyne/theme"
 	"fyne.io/fyne/widget"
+	"github.com/hectorchu/gonano/rpc"
 	"github.com/hectorchu/gonano/wallet"
 	"github.com/hectorchu/nano-token-protocol/tokenchain"
 )
@@ -78,20 +78,12 @@ func newTokenList(wi *walletInfo, ai *accountInfo) (tl *tokenList) {
 	win.Resize(fyne.NewSize(1000, 400))
 	win.CenterOnScreen()
 	win.Show()
-	done := make(chan bool)
-	win.SetOnClosed(func() { done <- true })
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		for {
-			select {
-			case <-ticker.C:
-				tl.list.Refresh()
-			case <-done:
-				ticker.Stop()
-				return
-			}
+	key := wsClient.subscribe(func(block *rpc.Block) {
+		if tcm.isChainAddress(block.Account) {
+			tl.list.Refresh()
 		}
-	}()
+	})
+	win.SetOnClosed(func() { wsClient.unsubscribe(key) })
 	return
 }
 
@@ -236,7 +228,6 @@ func (tl *tokenList) showTransferDialog(win fyne.Window) {
 				dialog.ShowError(err, win)
 				return
 			}
-			tl.list.Refresh()
 			showSuccessDialog(win, hash)
 		}
 	}, win)

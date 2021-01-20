@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/hectorchu/gonano/rpc"
 	"github.com/hectorchu/gonano/wallet"
@@ -25,17 +24,11 @@ type tokenChainManager struct {
 	tokens map[string]*tokenchain.Token
 }
 
-func newTokenChainManager() (tcm *tokenChainManager) {
-	tcm = &tokenChainManager{
+func newTokenChainManager() *tokenChainManager {
+	return &tokenChainManager{
 		chains: make(map[string]*tokenchain.Chain),
 		tokens: make(map[string]*tokenchain.Token),
 	}
-	go func() {
-		for range time.Tick(10 * time.Second) {
-			tcm.parse()
-		}
-	}()
-	return
 }
 
 func (tcm *tokenChainManager) getTokens() (tokens []*tokenchain.Token) {
@@ -111,21 +104,18 @@ func (tcm *tokenChainManager) transferToken(
 
 func (tcm *tokenChainManager) fetchChain(address string) (chain *tokenchain.Chain, err error) {
 	chain, ok := tcm.chains[address]
-	if !ok {
-		if chain, err = tokenchain.LoadChain(address, rpcURL); err != nil {
-			return
-		}
-		tcm.m.Lock()
-		tcm.chains[address] = chain
-	} else {
-		tcm.m.Lock()
-	}
-	err = chain.Parse()
-	tcm.m.Unlock()
-	if err != nil {
+	if ok {
 		return
 	}
-	err = tcm.withDB(func(db *sql.DB) error { return chain.SaveState(db) })
+	if chain, err = tokenchain.LoadChain(address, rpcURL); err != nil {
+		return
+	}
+	tcm.m.Lock()
+	tcm.chains[address] = chain
+	if err = chain.Parse(); err == nil {
+		err = tcm.withDB(chain.SaveState)
+	}
+	tcm.m.Unlock()
 	return
 }
 
@@ -153,16 +143,9 @@ func (tcm *tokenChainManager) fetchToken(hash rpc.BlockHash) (token *tokenchain.
 	return
 }
 
-func (tcm *tokenChainManager) parse() (err error) {
+func (tcm *tokenChainManager) isChainAddress(address string) (ok bool) {
 	tcm.m.Lock()
-	for _, chain := range tcm.chains {
-		if err = chain.Parse(); err != nil {
-			break
-		}
-		if err = tcm.withDB(func(db *sql.DB) error { return chain.SaveState(db) }); err != nil {
-			break
-		}
-	}
+	_, ok = tcm.chains[address]
 	tcm.m.Unlock()
 	return
 }
@@ -183,26 +166,28 @@ func (tcm *tokenChainManager) withDB(cb func(*sql.DB) error) (err error) {
 }
 
 func (tcm *tokenChainManager) load() (err error) {
-	tcm.m.Lock()
-	tcm.withDB(func(db *sql.DB) error { return tcm.loadChains(db) })
-	tcm.m.Unlock()
-	for _, hash := range viper.GetStringSlice("tokens") {
-		var h rpc.BlockHash
-		if h, err = hex.DecodeString(hash); err != nil {
-			return
-		}
+	tcm.withDB(tcm.loadChains)
+	if err = tcm.loadTokens(); err != nil {
+		return
+	}
+	wsClient.subscribe(func(block *rpc.Block) {
 		tcm.m.Lock()
-		for _, chain := range tcm.chains {
-			if token, err := chain.Token(h); err == nil {
-				tcm.tokens[string(h)] = token
-				break
+		if chain, ok := tcm.chains[block.Account]; ok {
+			if chain.Parse() == nil {
+				tcm.withDB(chain.SaveState)
 			}
 		}
 		tcm.m.Unlock()
-		if _, err = tcm.fetchToken(h); err != nil {
-			return
+	})
+	go func() {
+		tcm.m.Lock()
+		for _, chain := range tcm.chains {
+			if chain.Parse() == nil {
+				tcm.withDB(chain.SaveState)
+			}
 		}
-	}
+		tcm.m.Unlock()
+	}()
 	return
 }
 
@@ -231,6 +216,25 @@ func (tcm *tokenChainManager) loadChains(db *sql.DB) (err error) {
 		tcm.chains[chain.Address()] = chain
 	}
 	return rows.Err()
+}
+
+func (tcm *tokenChainManager) loadTokens() (err error) {
+	for _, h := range viper.GetStringSlice("tokens") {
+		hash, err := hex.DecodeString(h)
+		if err != nil {
+			return err
+		}
+		for _, chain := range tcm.chains {
+			if token, err := chain.Token(hash); err == nil {
+				tcm.tokens[string(hash)] = token
+				break
+			}
+		}
+		if _, err = tcm.fetchToken(hash); err != nil {
+			return err
+		}
+	}
+	return
 }
 
 func (tcm *tokenChainManager) save() (err error) {

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"time"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/container"
@@ -56,8 +55,11 @@ func newAccountList(win fyne.Window) (al *accountList) {
 				}
 				ai := al.wi.accountsList[id]
 				al.m.Lock()
-				balance := ai.balance.String()
-				if ai.pending.Raw.Sign() > 0 {
+				var balance string
+				if ai.balance.Raw != nil {
+					balance = ai.balance.String()
+				}
+				if ai.pending.Raw != nil && ai.pending.Raw.Sign() > 0 {
 					balance += fmt.Sprintf(" (+ %s)", ai.pending)
 				}
 				al.m.Unlock()
@@ -123,16 +125,26 @@ func newAccountList(win fyne.Window) (al *accountList) {
 	al.list.OnSelected = func(id widget.ListItemID) { al.setAccount(al.wi.accountsList[id]) }
 	al.list.OnUnselected = func(id widget.ListItemID) { al.setAccount(nil) }
 	al.setWallet(nil)
-	go func() {
-		for range time.Tick(10 * time.Second) {
-			al.m.Lock()
-			if al.wi != nil {
-				al.wi.getBalances()
+	wsClient.subscribe(func(block *rpc.Block) {
+		al.m.Lock()
+		if al.wi != nil {
+			if al.wi.updateBalance(block.Account) {
+				defer al.list.Refresh()
 			}
-			al.m.Unlock()
-			al.list.Refresh()
+			if _, ok := al.wi.Accounts[block.LinkAsAccount]; ok {
+				go func() {
+					al.m.Lock()
+					if al.wi != nil {
+						if al.wi.updateBalance(block.LinkAsAccount) {
+							defer al.list.Refresh()
+						}
+					}
+					al.m.Unlock()
+				}()
+			}
 		}
-	}()
+		al.m.Unlock()
+	})
 	return
 }
 
@@ -167,6 +179,14 @@ func (al *accountList) setWallet(wi *walletInfo) {
 	}
 	al.list.Unselect(0)
 	al.list.Refresh()
+	go func() {
+		al.m.Lock()
+		if al.wi != nil {
+			al.wi.getBalances()
+		}
+		al.m.Unlock()
+		al.list.Refresh()
+	}()
 }
 
 func (al *accountList) setAccount(ai *accountInfo) {
@@ -230,7 +250,9 @@ func (al *accountList) showSendDialog(win fyne.Window) {
 		amount  = widget.NewEntry()
 		max     = widget.NewButton("Max", func() {
 			al.m.Lock()
-			amount.SetText(al.selectedAccount.balance.String())
+			if al.selectedAccount.balance.Raw != nil {
+				amount.SetText(al.selectedAccount.balance.String())
+			}
 			al.m.Unlock()
 		})
 		paymentURL = widget.NewEntry()
@@ -295,10 +317,6 @@ func (al *accountList) send(win fyne.Window, account, amount, paymentURL string)
 		}
 	}
 	showSuccessDialog(win, hash)
-	al.m.Lock()
-	err = al.wi.getBalances()
-	al.m.Unlock()
-	al.list.Refresh()
 	return
 }
 
@@ -343,13 +361,6 @@ func (al *accountList) receive(win fyne.Window) (err error) {
 	prog.Show()
 	err = a.ReceivePendings()
 	prog.Hide()
-	if err != nil {
-		return
-	}
-	al.m.Lock()
-	err = al.wi.getBalances()
-	al.m.Unlock()
-	al.list.Refresh()
 	return
 }
 
@@ -367,13 +378,6 @@ func (al *accountList) receiveAll(win fyne.Window) (err error) {
 	prog.Show()
 	err = al.wi.w.ReceivePendings()
 	prog.Hide()
-	if err != nil {
-		return
-	}
-	al.m.Lock()
-	err = al.wi.getBalances()
-	al.m.Unlock()
-	al.list.Refresh()
 	return
 }
 

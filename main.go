@@ -69,8 +69,7 @@ func chooseRPC() {
 	for _, url := range []string{
 		"https://mynano.ninja/api/node",
 		"https://proxy.nanos.cc/proxy",
-		"https://voxpopuli.network/api",
-		"https://vault.nanocrawler.cc/api/node-api",
+		"https://vox.nanos.cc/api",
 	} {
 		rpcClient := rpc.Client{URL: url}
 		_, _, unchecked, err := rpcClient.BlockCount()

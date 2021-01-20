@@ -150,12 +150,7 @@ func (wi *walletInfo) addAccount() (err error) {
 		wi.accountsList = append(wi.accountsList[:i+1], wi.accountsList[i:]...)
 		wi.accountsList[i] = ai
 	}
-	rpcClient := rpc.Client{URL: rpcURL}
-	balance, pending, err := rpcClient.AccountBalance(ai.address)
-	if err != nil {
-		return nil
-	}
-	ai.balance.Raw, ai.pending.Raw = &balance.Int, &pending.Int
+	wi.updateBalance(ai.address)
 	return
 }
 
@@ -181,6 +176,17 @@ func (wi *walletInfo) getBalances() (err error) {
 	for address, ab := range balances {
 		ai := wi.Accounts[address]
 		ai.balance.Raw, ai.pending.Raw = &ab.Balance.Int, &ab.Pending.Int
+	}
+	return
+}
+
+func (wi *walletInfo) updateBalance(account string) (updated bool) {
+	if ai, ok := wi.Accounts[account]; ok {
+		rpcClient := rpc.Client{URL: rpcURL}
+		if balance, pending, err := rpcClient.AccountBalance(account); err == nil {
+			ai.balance.Raw, ai.pending.Raw = &balance.Int, &pending.Int
+			updated = true
+		}
 	}
 	return
 }
