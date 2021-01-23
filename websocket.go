@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"time"
 
 	"github.com/hectorchu/gonano/rpc"
 	"github.com/hectorchu/gonano/websocket"
@@ -55,14 +56,18 @@ func (c *wsClientType) unsubscribe(key int) {
 
 func (c *wsClientType) loop(ws *websocket.Client) {
 	for {
-		m := <-ws.Messages
-		c.m.Lock()
-		switch m := m.(type) {
+		switch m := (<-ws.Messages).(type) {
 		case *websocket.Confirmation:
+			c.m.Lock()
 			for _, sub := range c.sub {
 				sub.f(m.Block)
 			}
+			c.m.Unlock()
+		case error:
+			ws.Close()
+			for ws.Connect() != nil {
+				time.Sleep(10 * time.Second)
+			}
 		}
-		c.m.Unlock()
 	}
 }
