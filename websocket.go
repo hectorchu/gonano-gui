@@ -23,6 +23,7 @@ var wsClient = wsClientType{}
 
 func init() {
 	for _, url := range []string{
+		"wss://gonano.dev/ws",
 		"wss://ws.mynano.ninja",
 		"wss://vox.nanos.cc/websocket",
 	} {
