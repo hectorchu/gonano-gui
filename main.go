@@ -14,7 +14,7 @@ import (
 func main() {
 	f := app.New()
 	f.SetIcon(resourceNanoPng)
-	win := f.NewWindow("Gonano v0.1.11")
+	win := f.NewWindow("Gonano v0.1.12")
 	if err := initConfig(); err != nil {
 		dialog.ShowError(err, win)
 	}
@@ -70,7 +70,8 @@ func chooseRPC() {
 		"https://gonano.dev/rpc",
 		"https://mynano.ninja/api/node",
 		"https://proxy.nanos.cc/proxy",
-		"https://vox.nanos.cc/api",
+		"https://proxy.powernode.cc/proxy",
+		"https://rainstorm.city/api",
 	}
 	for _, url := range urls {
 		rpcClient := rpc.Client{URL: url}

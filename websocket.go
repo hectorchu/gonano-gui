@@ -25,7 +25,8 @@ func init() {
 	for _, url := range []string{
 		"wss://gonano.dev/ws",
 		"wss://ws.mynano.ninja",
-		"wss://vox.nanos.cc/websocket",
+		"wss://ws.powernode.cc",
+		"wss://rainstorm.city/websocket",
 	} {
 		ws := &websocket.Client{URL: url}
 		if ws.Connect() == nil {
