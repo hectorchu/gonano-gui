@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math"
+
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/container"
@@ -14,7 +16,7 @@ import (
 func main() {
 	f := app.New()
 	f.SetIcon(resourceNanoPng)
-	win := f.NewWindow("Gonano v0.1.12")
+	win := f.NewWindow("Gonano v0.1.13")
 	if err := initConfig(); err != nil {
 		dialog.ShowError(err, win)
 	}
@@ -66,22 +68,20 @@ func toggleTheme() {
 }
 
 func chooseRPC() {
-	urls := []string{
+	var n uint64 = math.MaxUint64
+	for _, url := range []string{
 		"https://gonano.dev/rpc",
 		"https://mynano.ninja/api/node",
 		"https://proxy.nanos.cc/proxy",
 		"https://proxy.powernode.cc/proxy",
 		"https://rainstorm.city/api",
-	}
-	for _, url := range urls {
+	} {
 		rpcClient := rpc.Client{URL: url}
-		_, _, unchecked, err := rpcClient.BlockCount()
-		if err == nil && unchecked < 1000 {
+		if _, _, unchecked, err := rpcClient.BlockCount(); err == nil && unchecked < n {
 			rpcURL = url
-			return
+			n = unchecked
 		}
 	}
-	rpcURL = urls[0]
 }
 
 func loadTokens(win fyne.Window) {
